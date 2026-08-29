@@ -1,0 +1,49 @@
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+*.aar
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Native build outputs
+cmake-build-*/
+out/
+*.so
+*.o
+*.a
+
+# AOSP generated files and large local artifacts
+aosp/
+aosp-out/
+ccache/
+cvd/
+artifacts/
+test-assets/
+*.img
+*.zip
+*.tar.gz
+
+# Signing material and credentials
+*.jks
+*.keystore
+*.pem
+*.key
+service-account*.json
+secrets.properties
+
+# Local-only project planning and discussion log
+docs/PROJECT_PLAN.local.md
+docs/WORKLOG.local.md
+docs/COMMIT_AND_PR_STYLE.local.md
+
+# macOS
+.DS_Store
