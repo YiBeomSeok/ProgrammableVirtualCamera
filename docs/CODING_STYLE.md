@@ -105,6 +105,13 @@ private class CreateSdpObserver(...) : SdpObserver { ... }
 private class SetSdpObserver(...) : SdpObserver { ... }
 ```
 
+## 주석
+
+- 한 주석은 4줄을 넘기지 않는다. `/**`와 `*/`도 줄 수에 포함한다.
+- 앞으로의 계획을 적지 않는다. "Phase 2에서 JNI로 옮겨간다" 같은 문장은 곧 사실과 달라지고, 고쳐도 아무도 알아채지 못한다.
+- 계획 문서의 단계 번호를 코드에서 참조하지 않는다.
+- 코드를 읽으면 아는 것을 다시 쓰지 않는다. 왜 이렇게 했는지가 드러나지 않을 때만 적는다.
+
 ## 4. 이 프로젝트에 적용
 
 - `FrameSource`는 `fun frames(): Flow<VideoFrame>` 하나로 표현한다. Phase 2에서 구현체가 JNI 뒤로 넘어가도 이 시그니처는 바뀌지 않는다.
