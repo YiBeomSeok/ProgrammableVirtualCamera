@@ -1,6 +1,7 @@
 [versions]
-agp = "8.13.2"
-kotlin = "2.2.21"
+agp = "9.3.2"
+# AGP 9의 내장 Kotlin 버전에 맞춘다. 어긋나면 kotlin-test가 컴파일러와 다른 버전이 된다.
+kotlin = "2.2.10"
 coroutines = "1.10.2"
 webrtc = "144.7559.14"
 androidxCore = "1.15.0"
@@ -11,6 +12,7 @@ androidxLifecycle = "2.8.7"
 webrtc = { module = "io.github.webrtc-sdk:android", version.ref = "webrtc" }
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 androidx-activity = { module = "androidx.activity:activity-ktx", version.ref = "androidxActivity" }
 androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
@@ -18,4 +20,3 @@ androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-kt
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
