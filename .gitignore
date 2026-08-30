@@ -50,3 +50,6 @@ docs/AGENT_HANDOFF.local.md
 
 # macOS
 .DS_Store
+
+# Android Studio가 만드는 daemon JVM 고정. IDE 런타임을 CLI 빌드까지 강제한다.
+gradle/gradle-daemon-jvm.properties

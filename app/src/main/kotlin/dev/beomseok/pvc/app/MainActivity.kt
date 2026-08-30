@@ -14,10 +14,8 @@ import kotlinx.coroutines.launch
 private const val TAG = "PvcMain"
 
 /**
- * Phase 1 첫 단위: WebRTC native 라이브러리가 실제로 올라오는지 확인한다.
- *
- * 영상은 아직 다루지 않는다. `PeerConnectionFactory`가 만들어지고, 화면을
- * 벗어날 때 해제까지 조용히 끝나는지만 본다.
+ * WebRTC native 라이브러리가 실제로 올라오는지 확인한다.
+ * 영상은 다루지 않는다. 생성과 해제가 조용히 끝나는지만 본다.
  */
 class MainActivity : ComponentActivity() {
 
@@ -32,8 +30,7 @@ class MainActivity : ComponentActivity() {
         }
         setContentView(status)
 
-        // 자원의 수명을 화면의 수명에 묶는다. 화면이 사라지면 취소가 전파되고
-        // withWebRtc의 해제가 그 경로에서 함께 일어난다.
+        // 화면이 사라지면 취소가 전파되어 withWebRtc의 해제가 뒤따른다.
         lifecycleScope.launch {
             withWebRtc { factory, eglBase ->
                 val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
