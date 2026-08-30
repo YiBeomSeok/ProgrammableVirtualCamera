@@ -2,7 +2,7 @@
 
 실행 가능한 샘플, 공개 인터페이스, 사용 문서와 배포 바이너리를 관리하는 Public 저장소다.
 
-Workspace의 `public/` 경로에 있을 때는 작업 전에 상위 `../CLAUDE.md`, `../docs/PHASE1_PLAN.local.md`와 `../docs/AGENT_HANDOFF.local.md`를 읽는다. 독립적으로 클론한 환경에서는 이 저장소의 공개 범위와 코딩 스타일만 적용한다.
+Workspace의 `public/` 경로에 있을 때는 작업 전에 상위 `../CLAUDE.md`, `../docs/PHASE1_PLAN.local.md`와 `../docs/AGENT_HANDOFF.local.md`를 읽는다. 질문과 구현 결과는 `../bin/agent-channel`로 전달한다. 독립적으로 클론한 환경에서는 이 저장소의 공개 범위와 코딩 스타일만 적용한다.
 
 코딩 스타일은 @docs/CODING_STYLE.md를 따른다.
 
@@ -11,7 +11,7 @@ Workspace의 `public/` 경로에 있을 때는 작업 전에 상위 `../CLAUDE.m
 - 코드: Claude Code
 - 문서: Codex
 
-Workspace에서는 서로의 담당 파일을 건드리지 않는다. 공통 작업 요청과 결과는 상위 `../docs/AGENT_HANDOFF.local.md`에서만 주고받는다.
+Workspace에서는 서로의 담당 파일을 건드리지 않는다. 상위 handoff에는 확정된 범위와 완료 조건만 두고, 오가는 대화는 Agent 채널을 사용한다.
 
 ## 현재 상태
 
