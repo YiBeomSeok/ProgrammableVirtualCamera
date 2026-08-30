@@ -68,6 +68,7 @@ suspend fun stop() = captureJob?.cancelAndJoin()
 - 스레드 규칙은 매 호출 검사 대신 디스패처를 고정해서 보장한다. `if (Thread.currentThread() != glThread) throw ...`를 쓰지 않는다.
 - 예외는 각 지점의 try/catch가 아니라 경계 한 곳에서 처리한다. `Flow` 끝의 `catch` 연산자.
 - 분기를 없앨 수 있는 연산자를 쓴다. "이전 소스가 있으면 닫고"는 `flatMapLatest`로 사라진다.
+- `by lazy`는 side effect와 해제 책임이 없는 immutable 값에만 쓴다. MediaCodec, Camera, EGL, WebRTC 객체와 CoroutineScope처럼 수명이 있는 리소스의 생성을 숨기는 데 쓰지 않는다.
 
 ## 2. 코루틴을 100% 쓴다
 
