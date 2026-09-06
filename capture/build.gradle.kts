@@ -11,6 +11,10 @@ android {
         consumerProguardFiles("consumer-rules.pro")
     }
 
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -22,6 +26,7 @@ dependencies {
     api(libs.webrtc)
     api(libs.coroutines.android)
 
-    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.coroutines.test)
 }

@@ -1,8 +1,7 @@
 [versions]
 agp = "9.4.0"
-# AGP 9의 내장 Kotlin 버전에 맞춘다. 어긋나면 kotlin-test가 컴파일러와 다른 버전이 된다.
-kotlin = "2.2.10"
 coroutines = "1.11.0"
+kotest = "6.2.4"
 webrtc = "150.7871.01"
 androidxCore = "1.19.0"
 androidxActivity = "1.13.0"
@@ -12,7 +11,8 @@ androidxLifecycle = "2.11.0"
 webrtc = { module = "io.github.webrtc-sdk:android", version.ref = "webrtc" }
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 androidx-activity = { module = "androidx.activity:activity-ktx", version.ref = "androidxActivity" }
 androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
