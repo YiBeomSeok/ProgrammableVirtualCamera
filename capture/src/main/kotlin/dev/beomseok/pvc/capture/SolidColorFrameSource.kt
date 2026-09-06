@@ -1,6 +1,9 @@
 package dev.beomseok.pvc.capture
 
 import java.nio.ByteBuffer
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -8,7 +11,6 @@ import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 
 private const val NANOS_PER_SECOND = 1_000_000_000L
-private const val MILLIS_PER_SECOND = 1_000L
 
 /** I420 세 평면을 각각 채울 값. */
 data class YuvColor(val y: UByte, val u: UByte, val v: UByte)
@@ -44,22 +46,26 @@ class SolidColorFrameSource(
         fill(buffer)
         try {
             var index = 0L
-            var elapsedMillis = 0L
+            var slept = Duration.ZERO
             while (true) {
                 buffer.retain()
-                emit(VideoFrame(buffer, 0, index * NANOS_PER_SECOND / frameRate))
+                emit(VideoFrame(buffer, 0, frameTime(index).inWholeNanoseconds))
 
                 index++
-                // 30fps의 한 프레임은 33.333ms라 매번 같은 정수 ms를 쉬면 밀린다.
-                // 목표 시각을 누적해서 그 오차를 없앤다.
-                val targetMillis = index * MILLIS_PER_SECOND / frameRate
-                delay(targetMillis - elapsedMillis)
-                elapsedMillis = targetMillis
+                // delay는 ns를 ms로 올림한다. 목표를 ms로 스냅해 두고 실제로 잔 만큼만
+                // 누적해야 33.333ms가 매번 34ms로 올라가 30fps가 느려지지 않는다.
+                val target = frameTime(index).inWholeMilliseconds.milliseconds
+                delay(target - slept)
+                slept = target
             }
         } finally {
             buffer.release()
         }
     }
+
+    /** 시작부터 [index]번째 프레임까지의 시각. timestamp와 페이싱이 같이 쓴다. */
+    private fun frameTime(index: Long): Duration =
+        (index * NANOS_PER_SECOND / frameRate).nanoseconds
 
     private fun fill(buffer: VideoFrame.I420Buffer) {
         val chromaWidth = (width + 1) / 2

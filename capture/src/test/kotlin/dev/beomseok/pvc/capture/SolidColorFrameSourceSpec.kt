@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import java.nio.ByteBuffer
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.take
@@ -77,11 +78,11 @@ class SolidColorFrameSourceSpec : StringSpec({
                     it.release()
                 }
             }
-            advanceTimeBy(1_000)
+            advanceTimeBy(1.seconds)
 
             collecting.cancelAndJoin()
             val receivedUntilCancel = received
-            advanceTimeBy(1_000)
+            advanceTimeBy(1.seconds)
 
             received shouldBe receivedUntilCancel
         }
@@ -104,7 +105,7 @@ class SolidColorFrameSourceSpec : StringSpec({
         runTest {
             val buffers = FakeI420Buffers()
             val collecting = launch { source(buffers).frames().collect { it.release() } }
-            advanceTimeBy(1_000)
+            advanceTimeBy(1.seconds)
 
             collecting.cancelAndJoin()
 
