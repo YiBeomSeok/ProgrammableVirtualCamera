@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "dev.beomseok.pvc.capture"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26

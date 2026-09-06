@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "dev.beomseok.pvc.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.beomseok.pvc"

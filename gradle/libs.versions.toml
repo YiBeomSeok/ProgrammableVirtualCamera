@@ -1,12 +1,12 @@
 [versions]
-agp = "9.3.2"
+agp = "9.4.0"
 # AGP 9의 내장 Kotlin 버전에 맞춘다. 어긋나면 kotlin-test가 컴파일러와 다른 버전이 된다.
 kotlin = "2.2.10"
-coroutines = "1.10.2"
-webrtc = "144.7559.14"
-androidxCore = "1.15.0"
-androidxActivity = "1.9.3"
-androidxLifecycle = "2.8.7"
+coroutines = "1.11.0"
+webrtc = "150.7871.01"
+androidxCore = "1.19.0"
+androidxActivity = "1.13.0"
+androidxLifecycle = "2.11.0"
 
 [libraries]
 webrtc = { module = "io.github.webrtc-sdk:android", version.ref = "webrtc" }
