@@ -18,22 +18,29 @@ fun initializeWebRtc(context: Context) {
 }
 
 /**
- * [PeerConnectionFactory]와 [EglBase]의 수명을 [block]에 묶는다.
+ * [EglBase]의 수명을 [block]에 묶는다.
  * 블록이 예외로 끝나든 취소되든 해제는 만든 자리에서 일어난다.
  */
-inline fun <T> withWebRtc(block: (PeerConnectionFactory, EglBase) -> T): T {
+inline fun <T> withEglBase(block: (EglBase) -> T): T {
     val eglBase = EglBase.create()
     try {
-        val factory = PeerConnectionFactory.builder()
-            .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
-            .createPeerConnectionFactory()
-        try {
-            return block(factory, eglBase)
-        } finally {
-            factory.dispose()
-        }
+        return block(eglBase)
     } finally {
         eglBase.release()
+    }
+}
+
+/**
+ * [PeerConnectionFactory]와 [EglBase]의 수명을 [block]에 묶는다.
+ */
+inline fun <T> withWebRtc(block: (PeerConnectionFactory, EglBase) -> T): T = withEglBase { eglBase ->
+    val factory = PeerConnectionFactory.builder()
+        .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
+        .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+        .createPeerConnectionFactory()
+    try {
+        block(factory, eglBase)
+    } finally {
+        factory.dispose()
     }
 }
