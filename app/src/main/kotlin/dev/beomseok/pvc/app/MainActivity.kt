@@ -63,13 +63,8 @@ private fun SolidColorPreview() {
                 withContext(Dispatchers.Default) {
                     SolidColorFrameSource(FRAME_WIDTH, FRAME_HEIGHT, FRAME_RATE, PREVIEW_COLOR)
                         .frames()
-                        .collect { frame ->
-                            try {
-                                renderer.onFrame(frame)
-                            } finally {
-                                frame.release()
-                            }
-                        }
+                        // onFrame은 보관할 프레임을 스스로 retain한다. 빌려주기만 하면 된다.
+                        .collect(renderer::onFrame)
                 }
             } finally {
                 renderer.release()

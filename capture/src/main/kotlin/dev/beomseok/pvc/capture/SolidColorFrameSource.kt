@@ -2,8 +2,8 @@ package dev.beomseok.pvc.capture
 
 import java.nio.ByteBuffer
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.TimeSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -29,8 +29,8 @@ object NativeI420Buffers : I420Buffers {
 }
 
 /**
- * 버퍼 하나를 프레임마다 참조만 늘려 나눠 주는 단색 소스.
- * 내보낸 프레임의 release는 수집하는 쪽 책임이다.
+ * 버퍼 하나를 모든 프레임이 나눠 쓰는 단색 소스.
+ * 프레임은 수집하는 동안만 빌려주며, 보관하려는 쪽만 retain하고 나중에 release한다.
  */
 class SolidColorFrameSource(
     private val width: Int,
@@ -38,6 +38,7 @@ class SolidColorFrameSource(
     private val frameRate: Int,
     private val color: YuvColor,
     private val buffers: I420Buffers = NativeI420Buffers,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : FrameSource {
 
     init {
@@ -46,24 +47,31 @@ class SolidColorFrameSource(
 
     override fun frames(): Flow<VideoFrame> = flow {
         val buffer = buffers.allocate(width, height)
-        fill(buffer)
         try {
+            fill(buffer)
+            val start = timeSource.markNow()
             var index = 0L
-            var slept = Duration.ZERO
             while (true) {
-                buffer.retain()
                 emit(VideoFrame(buffer, 0, frameTime(index).inWholeNanoseconds))
 
-                index++
-                // delay는 ns를 ms로 올림한다. 한 프레임 간격이 정수 ms가 아니면
-                // 매번 올림돼 느려지므로, 목표를 ms로 스냅하고 잔 만큼만 누적한다.
-                val target = frameTime(index).inWholeMilliseconds.milliseconds
-                delay(target - slept)
-                slept = target
+                // 잔 시간이 아니라 실제 경과 시간에서 다음 목표까지를 뺀다.
+                // 수집자의 처리 시간이 페이싱에 얹히지 않게 하려는 것이다.
+                index = nextIndex(index, start.elapsedNow())
+                val wait = frameTime(index) - start.elapsedNow()
+                if (wait > Duration.ZERO) delay(wait)
             }
         } finally {
             buffer.release()
         }
+    }
+
+    /**
+     * 다음에 내보낼 프레임의 번호.
+     * 밀렸으면 만들지 못한 프레임을 몰아 내보내지 않고 다음 경계로 건너뛴다.
+     */
+    private fun nextIndex(current: Long, elapsed: Duration): Long {
+        val passed = elapsed.inWholeNanoseconds * frameRate / NANOS_PER_SECOND
+        return maxOf(current, passed) + 1
     }
 
     /** 시작부터 [index]번째 프레임까지의 시각. timestamp와 페이싱이 같이 쓴다. */

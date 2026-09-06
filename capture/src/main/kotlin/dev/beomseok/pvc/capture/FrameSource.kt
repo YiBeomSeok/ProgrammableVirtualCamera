@@ -5,6 +5,7 @@ import org.webrtc.VideoFrame
 
 /**
  * 영상 프레임의 공급원.
+ * 프레임은 수집하는 동안만 빌려준다. 보관하려는 쪽이 retain하고 나중에 release한다.
  * 수집을 멈추면 취소가 전파되어 구현체가 연 자원이 그 자리에서 해제된다.
  */
 interface FrameSource {
