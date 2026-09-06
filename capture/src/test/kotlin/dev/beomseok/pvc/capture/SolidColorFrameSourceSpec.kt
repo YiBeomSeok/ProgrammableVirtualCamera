@@ -11,15 +11,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
-import kotlin.time.TimeSource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
@@ -32,16 +31,7 @@ private val FRAME_RATES = listOf(30, 45, 60)
 private val COLOR = YuvColor(y = 146u, u = 53u, v = 193u)
 private val PROCESSING = 5.milliseconds
 
-private fun source(
-    buffers: I420Buffers,
-    frameRate: Int = FRAME_RATE,
-    timeSource: TimeSource = TimeSource.Monotonic,
-) = SolidColorFrameSource(WIDTH, HEIGHT, frameRate, COLOR, buffers, timeSource)
-
-private fun ByteBuffer.distinctBytes(): Set<Byte> =
-    (0 until capacity()).map { get(it) }.toSet()
-
-/** 페이싱 검증이 실제 시계 대신 테스트 스케줄러의 가상 시간을 보게 한다. */
+/** 페이싱이 실제 실행 속도가 아니라 테스트 스케줄러의 가상 시간을 보게 한다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 private class SchedulerTimeSource(private val scheduler: TestCoroutineScheduler) :
     AbstractLongTimeSource(DurationUnit.MILLISECONDS) {
@@ -49,32 +39,42 @@ private class SchedulerTimeSource(private val scheduler: TestCoroutineScheduler)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
+private fun TestScope.source(buffers: I420Buffers, frameRate: Int = FRAME_RATE) =
+    SolidColorFrameSource(WIDTH, HEIGHT, frameRate, COLOR, buffers, SchedulerTimeSource(testScheduler))
+
+private fun ByteBuffer.distinctBytes(): Set<Byte> =
+    (0 until capacity()).map { get(it) }.toSet()
+
+@OptIn(ExperimentalCoroutinesApi::class)
 class SolidColorFrameSourceSpec : StringSpec({
 
     "프레임 크기가 요청한 해상도와 같다" {
         runTest {
-            val frame = source(FakeI420Buffers()).frames().take(1).toList().single()
-
-            frame.buffer.width shouldBe WIDTH
-            frame.buffer.height shouldBe HEIGHT
+            source(FakeI420Buffers()).frames().take(1).collect { frame ->
+                frame.buffer.width shouldBe WIDTH
+                frame.buffer.height shouldBe HEIGHT
+            }
         }
     }
 
     "세 평면이 모두 지정한 색으로 채워진다" {
         runTest {
-            val buffer = source(FakeI420Buffers()).frames().take(1).toList()
-                .single().buffer as VideoFrame.I420Buffer
+            source(FakeI420Buffers()).frames().take(1).collect { frame ->
+                val buffer = frame.buffer as VideoFrame.I420Buffer
 
-            buffer.dataY.distinctBytes() shouldBe setOf(COLOR.y.toByte())
-            buffer.dataU.distinctBytes() shouldBe setOf(COLOR.u.toByte())
-            buffer.dataV.distinctBytes() shouldBe setOf(COLOR.v.toByte())
+                buffer.dataY.distinctBytes() shouldBe setOf(COLOR.y.toByte())
+                buffer.dataU.distinctBytes() shouldBe setOf(COLOR.u.toByte())
+                buffer.dataV.distinctBytes() shouldBe setOf(COLOR.v.toByte())
+            }
         }
     }
 
     "timestamp가 프레임 간격만큼 단조 증가한다" {
         runTest {
-            val timestamps = source(FakeI420Buffers()).frames().take(4).toList()
-                .map { it.timestampNs.nanoseconds }
+            val timestamps = mutableListOf<Duration>()
+
+            source(FakeI420Buffers()).frames().take(4)
+                .collect { timestamps += it.timestampNs.nanoseconds }
 
             timestamps shouldBe listOf(
                 Duration.ZERO,
@@ -86,8 +86,11 @@ class SolidColorFrameSourceSpec : StringSpec({
     }
 
     "frameRate가 0 이하면 소스를 만들 수 없다" {
-        shouldThrow<IllegalArgumentException> { source(FakeI420Buffers(), 0) }
-        shouldThrow<IllegalArgumentException> { source(FakeI420Buffers(), -1) }
+        listOf(0, -1).forEach { frameRate ->
+            shouldThrow<IllegalArgumentException> {
+                SolidColorFrameSource(WIDTH, HEIGHT, frameRate, COLOR, FakeI420Buffers())
+            }
+        }
     }
 
     FRAME_RATES.forEach { frameRate ->
@@ -95,9 +98,7 @@ class SolidColorFrameSourceSpec : StringSpec({
             runTest {
                 val arrivals = mutableListOf<Long>()
 
-                source(FakeI420Buffers(), frameRate, SchedulerTimeSource(testScheduler))
-                    .frames()
-                    .take(frameRate + 1)
+                source(FakeI420Buffers(), frameRate).frames().take(frameRate + 1)
                     .collect {
                         arrivals += currentTime
                         delay(PROCESSING)
@@ -116,9 +117,7 @@ class SolidColorFrameSourceSpec : StringSpec({
             val arrivals = mutableListOf<Long>()
             val timestamps = mutableListOf<Duration>()
 
-            source(FakeI420Buffers(), FRAME_RATE, SchedulerTimeSource(testScheduler))
-                .frames()
-                .take(5)
+            source(FakeI420Buffers()).frames().take(5)
                 .collect {
                     arrivals += currentTime
                     timestamps += it.timestampNs.nanoseconds
@@ -166,14 +165,10 @@ class SolidColorFrameSourceSpec : StringSpec({
 
     "평면을 채우다 실패해도 버퍼가 남지 않는다" {
         runTest {
-            val buffers = FakeI420Buffers()
-            val brokenPlanes = object : I420Buffers {
-                override fun allocate(width: Int, height: Int): VideoFrame.I420Buffer =
-                    BrokenPlaneBuffer(buffers.allocate(width, height))
-            }
+            val buffers = FakeI420Buffers(failPlaneAccess = true)
 
             shouldThrow<IllegalStateException> {
-                source(brokenPlanes).frames().take(1).toList()
+                source(buffers).frames().take(1).collect { }
             }
 
             buffers.allocated.single().refCount shouldBe 0
@@ -196,7 +191,7 @@ class SolidColorFrameSourceSpec : StringSpec({
         runTest {
             val buffers = FakeI420Buffers()
 
-            source(buffers).frames().take(3).toList()
+            source(buffers).frames().take(3).collect { }
 
             buffers.allocated.single().refCount shouldBe 0
         }
@@ -220,23 +215,21 @@ class SolidColorFrameSourceSpec : StringSpec({
     }
 })
 
-private class FakeI420Buffers : I420Buffers {
+private class FakeI420Buffers(private val failPlaneAccess: Boolean = false) : I420Buffers {
     val allocated = mutableListOf<FakeI420Buffer>()
 
     override fun allocate(width: Int, height: Int): FakeI420Buffer =
-        FakeI420Buffer(width, height).also { allocated += it }
+        FakeI420Buffer(width, height, failPlaneAccess).also { allocated += it }
 }
 
-/** 평면을 건드리는 순간 실패해 fill 도중 예외를 재현한다. */
-private class BrokenPlaneBuffer(private val delegate: FakeI420Buffer) :
-    VideoFrame.I420Buffer by delegate {
-    override fun getDataY(): ByteBuffer = error("평면 접근 실패")
-}
-
-/** native 없이 도는 I420 버퍼. 평면은 stride 없이 딱 맞게 잡는다. */
+/**
+ * native 없이 도는 I420 버퍼. 평면은 stride 없이 딱 맞게 잡는다.
+ * 해제된 뒤의 평면 접근과 참조 카운트 오용을 그 자리에서 드러낸다.
+ */
 private class FakeI420Buffer(
     private val frameWidth: Int,
     private val frameHeight: Int,
+    private val failPlaneAccess: Boolean,
 ) : VideoFrame.I420Buffer {
 
     private val chromaWidth = (frameWidth + 1) / 2
@@ -250,15 +243,23 @@ private class FakeI420Buffer(
 
     override fun getWidth(): Int = frameWidth
     override fun getHeight(): Int = frameHeight
-    override fun getDataY(): ByteBuffer = planeY
-    override fun getDataU(): ByteBuffer = planeU
-    override fun getDataV(): ByteBuffer = planeV
+    override fun getDataY(): ByteBuffer = plane(planeY)
+    override fun getDataU(): ByteBuffer = plane(planeU)
+    override fun getDataV(): ByteBuffer = plane(planeV)
     override fun getStrideY(): Int = frameWidth
     override fun getStrideU(): Int = chromaWidth
     override fun getStrideV(): Int = chromaWidth
     override fun toI420(): VideoFrame.I420Buffer = this
-    override fun retain() { refCount++ }
-    override fun release() { refCount-- }
+
+    override fun retain() {
+        check(refCount > 0) { "해제된 버퍼를 retain했다" }
+        refCount++
+    }
+
+    override fun release() {
+        check(refCount > 0) { "이미 해제된 버퍼를 또 release했다" }
+        refCount--
+    }
 
     override fun cropAndScale(
         cropX: Int,
@@ -268,4 +269,10 @@ private class FakeI420Buffer(
         scaleWidth: Int,
         scaleHeight: Int,
     ): VideoFrame.Buffer = this
+
+    private fun plane(plane: ByteBuffer): ByteBuffer {
+        check(!failPlaneAccess) { "평면 접근 실패" }
+        check(refCount > 0) { "해제된 버퍼의 평면에 접근했다" }
+        return plane
+    }
 }
