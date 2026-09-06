@@ -3,13 +3,25 @@ package dev.beomseok.pvc.app
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.Gravity
-import android.widget.TextView
 import androidx.activity.ComponentActivity
-import androidx.lifecycle.lifecycleScope
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.beomseok.pvc.capture.withWebRtc
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.launch
 
 private const val TAG = "PvcMain"
 
@@ -21,32 +33,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val status = TextView(this).apply {
-            gravity = Gravity.CENTER
-            textSize = 16f
-            setPadding(48, 48, 48, 48)
-            text = "초기화 중…"
-        }
-        setContentView(status)
-
-        // 화면이 사라지면 취소가 전파되어 withWebRtc의 해제가 뒤따른다.
-        lifecycleScope.launch {
-            withWebRtc { factory, eglBase ->
-                val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
-                Log.i(TAG, "PeerConnectionFactory 생성됨: $factory")
-                Log.i(TAG, "EglBase 생성됨: ${eglBase.eglBaseContext}")
-                Log.i(TAG, "ABI=$abi  device=${Build.DEVICE}  sdk=${Build.VERSION.SDK_INT}")
-
-                status.text = buildString {
-                    appendLine("WebRTC 초기화 성공")
-                    appendLine()
-                    appendLine("ABI  $abi")
-                    appendLine("SDK  ${Build.VERSION.SDK_INT}")
-                    append("화면을 닫으면 해제된다.")
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    WebRtcStatus()
                 }
-
-                awaitCancellation()
             }
         }
     }
@@ -54,5 +45,36 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         Log.i(TAG, "화면 종료. WebRTC 자원 해제가 뒤따른다.")
+    }
+}
+
+/**
+ * 컴포지션에서 벗어나면 [LaunchedEffect]가 취소되고 withWebRtc의 해제가 뒤따른다.
+ */
+@Composable
+private fun WebRtcStatus() {
+    var status by remember { mutableStateOf("초기화 중…") }
+
+    LaunchedEffect(Unit) {
+        withWebRtc { factory, eglBase ->
+            val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown"
+            Log.i(TAG, "PeerConnectionFactory 생성됨: $factory")
+            Log.i(TAG, "EglBase 생성됨: ${eglBase.eglBaseContext}")
+            Log.i(TAG, "ABI=$abi  device=${Build.DEVICE}  sdk=${Build.VERSION.SDK_INT}")
+
+            status = buildString {
+                appendLine("WebRTC 초기화 성공")
+                appendLine()
+                appendLine("ABI  $abi")
+                appendLine("SDK  ${Build.VERSION.SDK_INT}")
+                append("화면을 닫으면 해제된다.")
+            }
+
+            awaitCancellation()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = status, modifier = Modifier.padding(24.dp))
     }
 }

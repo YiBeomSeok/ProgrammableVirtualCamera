@@ -1,11 +1,13 @@
 [versions]
 agp = "9.4.0"
+# Compose 컴파일러 플러그인은 AGP 내장 Kotlin 버전과 같아야 한다.
+kotlin = "2.2.10"
 coroutines = "1.11.0"
 kotest = "6.2.4"
 webrtc = "150.7871.01"
 androidxCore = "1.19.0"
 androidxActivity = "1.13.0"
-androidxLifecycle = "2.11.0"
+androidxComposeBom = "2026.08.00"
 
 [libraries]
 webrtc = { module = "io.github.webrtc-sdk:android", version.ref = "webrtc" }
@@ -14,9 +16,12 @@ coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", ve
 kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
-androidx-activity = { module = "androidx.activity:activity-ktx", version.ref = "androidxActivity" }
-androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidxComposeBom" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

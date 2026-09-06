@@ -4,7 +4,7 @@
     <application
         android:name=".PvcApplication"
         android:label="Programmable Virtual Camera"
-        android:theme="@android:style/Theme.Material.Light">
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
             android:name=".MainActivity"
