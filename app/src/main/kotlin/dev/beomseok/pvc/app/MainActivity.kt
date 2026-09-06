@@ -58,14 +58,17 @@ private fun SolidColorPreview() {
 
     LaunchedEffect(renderer) {
         withEglBase { eglBase ->
-            renderer.init(eglBase.eglBaseContext, null)
             try {
+                renderer.init(eglBase.eglBaseContext, null)
                 withContext(Dispatchers.Default) {
                     SolidColorFrameSource(FRAME_WIDTH, FRAME_HEIGHT, FRAME_RATE, PREVIEW_COLOR)
                         .frames()
                         .collect { frame ->
-                            renderer.onFrame(frame)
-                            frame.release()
+                            try {
+                                renderer.onFrame(frame)
+                            } finally {
+                                frame.release()
+                            }
                         }
                 }
             } finally {

@@ -1,5 +1,6 @@
 package dev.beomseok.pvc.capture
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -18,55 +19,80 @@ import org.webrtc.VideoFrame
 private const val WIDTH = 1280
 private const val HEIGHT = 720
 private const val FRAME_RATE = 30
+private val FRAME_RATES = listOf(30, 45, 60)
 private val COLOR = YuvColor(y = 146u, u = 53u, v = 193u)
 
-private fun source(buffers: I420Buffers) =
-    SolidColorFrameSource(WIDTH, HEIGHT, FRAME_RATE, COLOR, buffers)
+private fun source(buffers: I420Buffers, frameRate: Int = FRAME_RATE) =
+    SolidColorFrameSource(WIDTH, HEIGHT, frameRate, COLOR, buffers)
 
 private fun ByteBuffer.distinctBytes(): Set<Byte> =
     (0 until capacity()).map { get(it) }.toSet()
+
+/** 소유권이 넘어온 프레임을 검증이 끝나거나 실패해도 반드시 돌려준다. */
+private inline fun <T> List<VideoFrame>.releasingEach(block: (List<VideoFrame>) -> T): T =
+    try {
+        block(this)
+    } finally {
+        forEach { it.release() }
+    }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SolidColorFrameSourceSpec : StringSpec({
 
     "프레임 크기가 요청한 해상도와 같다" {
         runTest {
-            val frame = source(FakeI420Buffers()).frames().take(1).toList().single()
-
-            frame.buffer.width shouldBe WIDTH
-            frame.buffer.height shouldBe HEIGHT
+            source(FakeI420Buffers()).frames().take(1).toList().releasingEach { frames ->
+                frames.single().buffer.width shouldBe WIDTH
+                frames.single().buffer.height shouldBe HEIGHT
+            }
         }
     }
 
     "세 평면이 모두 지정한 색으로 채워진다" {
         runTest {
-            val frame = source(FakeI420Buffers()).frames().take(1).toList().single()
-            val buffer = frame.buffer as VideoFrame.I420Buffer
+            source(FakeI420Buffers()).frames().take(1).toList().releasingEach { frames ->
+                val buffer = frames.single().buffer as VideoFrame.I420Buffer
 
-            buffer.dataY.distinctBytes() shouldBe setOf(COLOR.y.toByte())
-            buffer.dataU.distinctBytes() shouldBe setOf(COLOR.u.toByte())
-            buffer.dataV.distinctBytes() shouldBe setOf(COLOR.v.toByte())
-        }
-    }
-
-    "31번째 프레임까지 정확히 1초가 걸린다" {
-        runTest {
-            val start = currentTime
-
-            val frames = source(FakeI420Buffers()).frames().take(31).toList()
-
-            frames shouldHaveSize 31
-            currentTime - start shouldBe 1_000L
+                buffer.dataY.distinctBytes() shouldBe setOf(COLOR.y.toByte())
+                buffer.dataU.distinctBytes() shouldBe setOf(COLOR.u.toByte())
+                buffer.dataV.distinctBytes() shouldBe setOf(COLOR.v.toByte())
+            }
         }
     }
 
     "timestamp가 프레임 간격만큼 단조 증가한다" {
         runTest {
-            val timestamps = source(FakeI420Buffers()).frames().take(4).toList().map { it.timestampNs }
+            source(FakeI420Buffers()).frames().take(4).toList().releasingEach { frames ->
+                val timestamps = frames.map { it.timestampNs }
 
-            timestamps shouldBe listOf(0L, 33_333_333L, 66_666_666L, 100_000_000L)
-            timestamps.zipWithNext().all { (earlier, later) -> earlier < later } shouldBe true
+                timestamps shouldBe listOf(0L, 33_333_333L, 66_666_666L, 100_000_000L)
+                timestamps.zipWithNext().all { (earlier, later) -> earlier < later } shouldBe true
+            }
         }
+    }
+
+    FRAME_RATES.forEach { frameRate ->
+        "${frameRate}fps는 한 주기에 ${frameRate}프레임을 정확히 1초에 걸쳐 내보낸다" {
+            runTest {
+                val start = currentTime
+
+                source(FakeI420Buffers(), frameRate).frames().take(frameRate + 1).toList()
+                    .releasingEach { frames ->
+                        frames shouldHaveSize (frameRate + 1)
+                        currentTime - start shouldBe 1_000L
+                        // index가 frameRate면 정확히 1초. 나눗셈이 rate에 상관없이 떨어진다.
+                        frames.last().timestampNs shouldBe 1_000_000_000L
+                        frames.map { it.timestampNs }
+                            .zipWithNext()
+                            .all { (earlier, later) -> earlier < later } shouldBe true
+                    }
+            }
+        }
+    }
+
+    "frameRate가 0 이하면 소스를 만들 수 없다" {
+        shouldThrow<IllegalArgumentException> { source(FakeI420Buffers(), 0) }
+        shouldThrow<IllegalArgumentException> { source(FakeI420Buffers(), -1) }
     }
 
     "수집을 취소하면 프레임 생성이 멈춘다" {
@@ -96,7 +122,7 @@ class SolidColorFrameSourceSpec : StringSpec({
 
             // take가 흐름을 끝내며 소스 몫은 이미 풀렸다. 남은 셋은 프레임이 쥐고 있다.
             buffers.allocated.single().refCount shouldBe 3
-            frames.forEach { it.release() }
+            frames.releasingEach { }
             buffers.allocated.single().refCount shouldBe 0
         }
     }

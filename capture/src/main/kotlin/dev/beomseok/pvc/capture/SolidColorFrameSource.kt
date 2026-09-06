@@ -29,9 +29,8 @@ object NativeI420Buffers : I420Buffers {
 }
 
 /**
- * 같은 색으로만 채운 프레임을 정해진 fps로 만든다.
- * 내용이 바뀌지 않으므로 버퍼 하나를 프레임마다 참조만 늘려 나눠 쓴다.
- * 내보낸 프레임을 release하는 것은 수집하는 쪽 책임이다.
+ * 버퍼 하나를 프레임마다 참조만 늘려 나눠 주는 단색 소스.
+ * 내보낸 프레임의 release는 수집하는 쪽 책임이다.
  */
 class SolidColorFrameSource(
     private val width: Int,
@@ -40,6 +39,10 @@ class SolidColorFrameSource(
     private val color: YuvColor,
     private val buffers: I420Buffers = NativeI420Buffers,
 ) : FrameSource {
+
+    init {
+        require(frameRate > 0) { "frameRate는 양수여야 한다: $frameRate" }
+    }
 
     override fun frames(): Flow<VideoFrame> = flow {
         val buffer = buffers.allocate(width, height)
@@ -52,8 +55,8 @@ class SolidColorFrameSource(
                 emit(VideoFrame(buffer, 0, frameTime(index).inWholeNanoseconds))
 
                 index++
-                // delay는 ns를 ms로 올림한다. 목표를 ms로 스냅해 두고 실제로 잔 만큼만
-                // 누적해야 33.333ms가 매번 34ms로 올라가 30fps가 느려지지 않는다.
+                // delay는 ns를 ms로 올림한다. 한 프레임 간격이 정수 ms가 아니면
+                // 매번 올림돼 느려지므로, 목표를 ms로 스냅하고 잔 만큼만 누적한다.
                 val target = frameTime(index).inWholeMilliseconds.milliseconds
                 delay(target - slept)
                 slept = target
